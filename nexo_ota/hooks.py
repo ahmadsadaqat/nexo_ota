@@ -199,6 +199,12 @@ app_license = "mit"
 # before_request = ["nexo_ota.utils.before_request"]
 # after_request = ["nexo_ota.utils.after_request"]
 
+fixtures = [
+	{"dt": "Custom Field", "filters": [["module", "=", "NEXO Order Taking App"]]},
+	{"dt": "DocType", "filters": [["custom", "=", 1], ["module", "=", "NEXO Order Taking App"]]},
+	{"dt": "Property Setter", "filters": [["doc_type", "in", ["Sales Invoice", "Item", "POS Profile", "Item Group"]]]},
+]
+
 # Job Events
 # ----------
 # before_job = ["nexo_ota.utils.before_job"]

@@ -1,0 +1,1388 @@
+const App = {
+    restaurantGroups: [],
+    selectedTable: null,
+    tables: [], 
+    cart: [],
+    currentItemForModal: null,
+    currentGroupFilter: "",
+    currentFloorFilter: "", 
+    syncInterval: null,
+    deferredPrompt: null,
+    userContext: null,
+    employeeData: null,
+    currentActiveInvoiceId: null,
+    currentTheme: "dark", 
+
+    init() {
+        this.initializeTheme();
+        this.fetchInitialSetup();
+        this.injectModalHTML();
+        this.injectToastContainer();
+        this.setupRealtimeSync();
+        this.setupPWAInstallation();
+    },
+
+    initializeTheme() {
+        const savedTheme = localStorage.getItem('ota-theme') || 'dark';
+        this.setTheme(savedTheme);
+    },
+
+    setTheme(theme) {
+        this.currentTheme = theme;
+        localStorage.setItem('ota-theme', theme);
+        const htmlEl = document.documentElement;
+        
+        if (theme === 'dark') {
+            htmlEl.classList.add('dark');
+            htmlEl.style.backgroundColor = "#020617"; 
+        } else {
+            htmlEl.classList.remove('dark');
+            htmlEl.style.backgroundColor = "#f8fafc"; 
+        }
+        this.updateThemeToggleIcon();
+    },
+
+    toggleTheme() {
+        const nextTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
+        this.setTheme(nextTheme);
+    },
+
+    updateThemeToggleIcon() {
+        const btn = document.getElementById('theme-toggle-btn');
+        if (!btn) return;
+        if (this.currentTheme === 'dark') {
+            btn.innerHTML = `
+                <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 17.657l.707.707M7.343 6.343l.707-.707M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+            `;
+        } else {
+            btn.innerHTML = `
+                <svg class="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                </svg>
+            `;
+        }
+    },
+
+    togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password');
+        const toggleIcon = document.getElementById('password-toggle-icon');
+        if (!passwordInput || !toggleIcon) return;
+
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleIcon.innerHTML = `
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"></path>
+            `;
+        } else {
+            passwordInput.type = 'password';
+            toggleIcon.innerHTML = `
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+            `;
+        }
+    },
+
+    toggleProfilePanel(open = true) {
+        const backdrop = document.getElementById('profile-sidebar-backdrop');
+        const panel = document.getElementById('profile-sidebar');
+        if (!backdrop || !panel) return;
+
+        if (open) {
+            backdrop.classList.remove('pointer-events-none', 'opacity-0');
+            backdrop.classList.add('opacity-100');
+            panel.classList.remove('translate-x-full');
+        } else {
+            backdrop.classList.remove('opacity-100');
+            backdrop.classList.add('opacity-0', 'pointer-events-none');
+            panel.classList.add('translate-x-full');
+        }
+    },
+
+    injectToastContainer() {
+        if (document.getElementById('toast-container')) return;
+        const container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'fixed top-5 left-1/2 -translate-x-1/2 z- flex flex-col gap-3 w-[90%] max-w-sm pointer-events-none';
+        document.body.appendChild(container);
+    },
+
+    showToast(message, type = "success") {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `transform translate-y-[-20px] opacity-0 transition-all duration-300 pointer-events-auto p-4 rounded-2xl shadow-xl border flex items-center gap-3 backdrop-blur-md font-sans text-xs font-bold text-center justify-center`;
+        
+        if (this.currentTheme === 'dark') {
+            toast.className += type === "success" 
+                ? ' bg-slate-900/90 border-emerald-500/30 text-emerald-400' 
+                : ' bg-slate-900/90 border-red-500/30 text-red-400';
+        } else {
+            toast.className += type === "success" 
+                ? ' bg-white/95 border-emerald-200 text-emerald-700' 
+                : ' bg-white/95 border-red-200 text-red-700';
+        }
+
+        toast.innerHTML = `<span>${message}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.remove('translate-y-[-20px]', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-[-10px]');
+            setTimeout(() => { toast.remove(); }, 300);
+        }, 3500);
+    },
+
+    async fetchWithAuth(method, args = {}) {
+        try {
+            let headers = {
+                'Accept': 'application/json',
+                'X-Frappe-CSRF-Token': window.frappe ? window.frappe.csrf_token : ""
+            };
+            let bodyData;
+
+            // 1. Detect if arguments are already an encoded query string (like our manual fallback string)
+            if (typeof args === 'string') {
+                headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                bodyData = args;
+            } 
+            // 2. If it's a plain JavaScript object, convert it into standard URL-encoded form parameters
+            else if (args && typeof args === 'object' && Object.keys(args).length > 0) {
+                headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                
+                bodyData = Object.keys(args)
+                    .map(key => {
+                        // Frappe expects arrays/objects (like 'filters' or 'fields') to be stringified inside form-data values
+                        const value = typeof args[key] === 'object' ? JSON.stringify(args[key]) : args[key];
+                        return encodeURIComponent(key) + '=' + encodeURIComponent(value);
+                    })
+                    .join('&');
+            } 
+            // 3. Fallback handle for completely blank arguments
+            else {
+                bodyData = undefined;
+            }
+
+            const response = await fetch(`/api/method/${method}`, {
+                method: 'POST',
+                headers: headers,
+                body: bodyData
+            });
+
+            if (response.status === 403 || response.status === 401) {
+                console.warn(`Identity authorization expired or invalid for ${method}`);
+                if (typeof this.handleAuthFailure === 'function') {
+                    this.handleAuthFailure();
+                }
+                return null;
+            }
+
+            // Handle server crashes or custom validation restrictions (like 417 Expectation Failed) safely
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error(`Server rejected request [${response.status}]:`, errText);
+                return null;
+            }
+
+            const data = await response.json();
+            
+            // Return data directly if wrapped inside .message, otherwise return the base data object
+            return data.hasOwnProperty('message') ? data.message : data;
+
+        } catch (error) {
+            console.error("Request breakdown error:", error);
+            return null;
+        }
+    },
+
+    handleAuthFailure() {
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+            this.syncInterval = null;
+        }
+        const appScreen = document.getElementById('app-screen');
+        const tableScreen = document.getElementById('table-screen');
+        const loginScreen = document.getElementById('login-screen');
+
+        if (appScreen) appScreen.classList.add('hidden');
+        if (tableScreen) tableScreen.classList.add('hidden');
+        if (loginScreen) loginScreen.classList.remove('hidden');
+    },
+
+    logout() {
+        if (confirm("Are you sure you want to log out?")) {
+            if (this.syncInterval) clearInterval(this.syncInterval);
+            fetch('/api/method/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Frappe-CSRF-Token': window.frappe ? frappe.csrf_token : ''
+                }
+            })
+            .then(() => window.location.replace('/ota'))
+            .catch(() => window.location.replace('/ota'));
+        }
+    },
+
+    setupPWAInstallation() {
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+            console.log('App running native standalone mode. Install prompt links suppressed.');
+            return;
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            this.deferredPrompt = e;
+            this.showInstallOptions();
+        });
+    },
+
+    showInstallOptions() {
+        const loginBanner = document.getElementById('login-install-banner');
+        if (loginBanner) {
+            loginBanner.classList.remove('hidden');
+        }
+
+        const headerBtn = document.getElementById('pwa-header-download-btn');
+        if (headerBtn) {
+            headerBtn.classList.remove('hidden');
+            headerBtn.classList.add('flex');
+        }
+    },
+
+    triggerPWAInstall() {
+        if (!this.deferredPrompt) {
+            this.showToast("App already installed or prompt unavailable.", "success");
+            return;
+        }
+        this.deferredPrompt.prompt();
+        this.deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                this.showToast("Installing App to Device!");
+                const loginBanner = document.getElementById('login-install-banner');
+                if (loginBanner) loginBanner.remove();
+                const headerBtn = document.getElementById('pwa-header-download-btn');
+                if (headerBtn) headerBtn.remove();
+            }
+            this.deferredPrompt = null;
+        });
+    },
+
+    injectModalHTML() {
+        if (document.getElementById('addon-modal')) return;
+        const modalDiv = document.createElement('div');
+        modalDiv.id = 'addon-modal';
+        modalDiv.className = 'fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden';
+        modalDiv.innerHTML = `
+            <div id="modal-container" class="bg-white dark:bg-slate-900 border border-transparent dark:border-slate-800 rounded-[2rem] max-w-md w-full p-6 shadow-2xl transform scale-95 opacity-0 transition-all duration-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="modal-item-title" class="text-xl font-black text-slate-800 dark:text-slate-100">Customize Item</h3>
+                    <button onclick="App.closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition text-xl font-bold">&times;</button>
+                </div>
+                <div id="modal-addons-section" class="mb-5 hidden">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Select Add-ons</label>
+                    <div id="modal-addons-list" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Special Instructions</label>
+                    <textarea id="modal-instructions" rows="3" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 text-xs focus:outline-none focus:border-[#42818c] dark:text-slate-200 transition resize-none placeholder:text-slate-400" placeholder="E.g., Make it extra spicy..."></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="App.closeModal()" class="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition">Cancel</button>
+                    <button onclick="App.submitModalSelection()" class="flex-1 py-3 bg-[#42818c] text-white rounded-xl font-bold text-xs hover:bg-[#34666f] shadow-lg shadow-[#42818c]/20 transition">Add to Cart</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modalDiv);
+    },
+
+    async fetchInitialSetup() {
+        // Fetch everything securely packaged in a single whitelisted transaction call
+        const data = await this.fetchWithAuth('nexo_ota.api.get_waiter_context');
+
+        if (data && data.error === false) {
+            this.userContext = data;
+            this.tables = data.tables || [];
+            
+            // Map the employee block returned from the backend immediately
+            if (data.employee) {
+                this.employeeData = data.employee;
+                this.renderEmployeeProfileUI();
+            }
+
+            const textString = `${data.pos_profile || ''} (${data.branch || ''})`;
+            document.querySelectorAll('.branding-target-label').forEach(el => {
+                el.innerText = textString;
+            });
+
+            if (this.currentFloorFilter === undefined) {
+                this.currentFloorFilter = "";
+            }
+
+            this.renderFloorsUI(data.floors || []);
+            this.renderTables();
+            
+            // Fire your background sync loop
+            await this.syncEverythingBackground();
+        } else {
+            if (data && data.message) {
+                this.showToast("System Error: " + data.message, "error");
+            }
+        }
+    },
+
+    async fetchEmployeeProfile() {
+        // Pulls instantly from securely loaded backend context memory structures
+        if (this.userContext && this.userContext.employee) {
+            this.employeeData = this.userContext.employee;
+            this.renderEmployeeProfileUI();
+        }
+    },
+
+    renderEmployeeProfileUI() {
+        if (!this.employeeData) return;
+
+        console.log("Mapping Employee Profile Data:", this.employeeData);
+
+        // 1. Try finding elements via standard data-profile-field attributes
+        let empIdEl = document.querySelector('[data-profile-field="employee_id"]');
+        let empNameEl = document.querySelector('[data-profile-field="employee_name"]');
+        let userIdEl = document.querySelector('[data-profile-field="email"]'); 
+        let branchEl = document.querySelector('[data-profile-field="department"]'); 
+        let avatarEl = document.querySelector('[data-profile-field="avatar"]');
+
+        // 2. Fallback: If elements aren't found by attributes, look for them by placeholder text values
+        if (!empIdEl) {
+            const divs = Array.from(document.querySelectorAll('div, span, p, h3'));
+            empIdEl = divs.find(el => el.innerText && el.innerText.trim() === 'EMP-000');
+        }
+        if (!branchEl) {
+            const divs = Array.from(document.querySelectorAll('div, span, p'));
+            branchEl = divs.find(el => el.innerText && el.innerText.trim() === 'Not Assigned');
+        }
+        if (!userIdEl) {
+            const divs = Array.from(document.querySelectorAll('div, span, p'));
+            userIdEl = divs.find(el => el.innerText && el.innerText.trim() === 'unmapped@system.com');
+        }
+        // Try finding the main "Loading Profile..." text to replace with the real employee name
+        if (!empNameEl) {
+            const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4, div, span'));
+            empNameEl = headings.find(el => el.innerText && el.innerText.includes('Loading Profile...'));
+        }
+
+        // 3. Inject data safely into whatever elements were successfully found
+        if (empIdEl) empIdEl.innerText = this.employeeData.employee_id || "N/A";
+        if (empNameEl) {
+            empNameEl.innerText = this.employeeData.employee_name || "Terminal Agent";
+            // Remove any temporary loading CSS classes if they exist
+            empNameEl.classList.remove('animate-pulse'); 
+        }
+        if (userIdEl) userIdEl.innerText = this.employeeData.user_id || "";
+        if (branchEl) branchEl.innerText = this.employeeData.branch || "";
+
+        // 4. Handle Profile Avatar updates or fallbacks
+        if (!avatarEl) {
+            // Fallback: search for an image inside the sidebar wrapper context
+            avatarEl = document.querySelector('.bg-slate-900 img, .profile-sidebar img, img');
+        }
+
+        if (avatarEl) {
+            if (this.employeeData.image) {
+                avatarEl.src = this.employeeData.image;
+            } else {
+                // Inline UI friendly placeholder avatar icon 
+                avatarEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z'/></svg>";
+            }
+            avatarEl.classList.remove('hidden');
+        }
+
+        // Handle the secondary designation element if present
+        const desEl = document.querySelector('[data-profile-field="designation"]') || 
+                      Array.from(document.querySelectorAll('div, span, p')).find(el => el.innerText && el.innerText.trim() === 'Designation Unmapped');
+        if (desEl) {
+            desEl.innerText = "Active Server";
+        }
+    },
+
+    setupRealtimeSync() {
+        if (typeof frappe !== 'undefined' && frappe.realtime) {
+            frappe.realtime.subscribe_doctype('Item Price');
+            frappe.realtime.subscribe_doctype('Item');
+            frappe.realtime.subscribe_doctype('Table');
+            frappe.realtime.subscribe_doctype('Restaurant Floor');
+            frappe.realtime.subscribe_doctype('Item Group');
+            frappe.realtime.subscribe_doctype('Employee');
+
+            frappe.realtime.on('list_update', (data) => this.handleLiveRefresh(data.doctype));
+            frappe.realtime.on('doc_update', (data) => this.handleLiveRefresh(data.doctype));
+        }
+
+        if (this.syncInterval) clearInterval(this.syncInterval);
+        this.syncInterval = setInterval(() => { this.syncEverythingBackground(); }, 3000);
+    },
+
+    handleLiveRefresh(doctype) {
+        if (doctype === 'Employee') this.fetchEmployeeProfile();
+        this.syncEverythingBackground();
+    },
+
+    async syncEverythingBackground() {
+        try {
+            const data = await this.fetchWithAuth('nexo_ota.api.get_waiter_context');
+            if (!data || data.error) return;
+
+            this.userContext = data;
+            this.tables = data.tables || []; 
+            
+            // Seamlessly refresh active employee information on background loops
+            if (data.employee) {
+                this.employeeData = data.employee;
+                this.renderEmployeeProfileUI();
+            }
+            
+            this.renderFloorsUI(data.floors || []);
+
+            const tableScreen = document.getElementById('table-screen');
+            if (tableScreen && !tableScreen.classList.contains('hidden')) {
+                this.renderTables();
+            }
+
+            // Keep your existing item group filters down below...
+            const groupFilters = JSON.stringify([["custom_is_restaurant_group", "=", 1]]);
+            const groupRes = await fetch(`/api/resource/Item Group?fields=["name"]&filters=${encodeURIComponent(groupFilters)}`, {
+                headers: { 'X-Frappe-CSRF-Token': window.frappe ? frappe.csrf_token : "" }
+            });
+            if (groupRes.status === 403) return this.handleAuthFailure();
+            const groupData = await groupRes.json();
+
+            this.restaurantGroups = (groupData.data || []).map(g => g.name);
+            this.renderMenuUI(groupData.data || []);
+
+            await this.fetchItems(this.currentGroupFilter);
+
+            if (this.currentItemForModal) {
+                await this.refreshActiveModalAddons();
+            }
+        } catch (e) {
+            console.error("Background sync failure:", e);
+        }
+    },
+
+    renderFloorsUI(floors) {
+        const container = document.getElementById('floor-tabs');
+        if (!container) return;
+
+        let html = `
+            <button onclick="App.changeFloorTab(this, '')"
+                    class="floor-btn whitespace-nowrap px-6 py-3 rounded-xl font-bold text-xs transition-all ${
+                        this.currentFloorFilter === ''
+                        ? 'bg-[#42818c] text-white shadow-lg shadow-[#42818c]/20'
+                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }">
+                All Floors
+            </button>
+        `;
+
+        floors.forEach(f => {
+            const targetFloorName = f.name1 || f.name || f.floor_name;
+            const isActive = this.currentFloorFilter === targetFloorName;
+            html += `
+                <button onclick="App.changeFloorTab(this, '${targetFloorName}')"
+                        class="floor-btn whitespace-nowrap px-6 py-3 rounded-xl font-bold text-xs transition-all ${
+                            isActive
+                            ? 'bg-[#42818c] text-white shadow-lg shadow-[#42818c]/20'
+                            : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        }">
+                    ${targetFloorName}
+                </button>
+            `;
+        });
+
+        container.innerHTML = html;
+    },
+
+    changeFloorTab(btn, floorName) {
+        this.currentFloorFilter = floorName;
+        document.querySelectorAll('.floor-btn').forEach(b => {
+            b.className = "floor-btn whitespace-nowrap px-6 py-3 rounded-xl font-bold text-xs transition-all bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800";
+        });
+
+        btn.className = "floor-btn whitespace-nowrap px-6 py-3 rounded-xl font-bold text-xs transition-all bg-[#42818c] text-white shadow-lg shadow-[#42818c]/20";
+
+        this.renderTables();
+    },
+
+    renderTables() {
+        const grid = document.getElementById('table-grid');
+        if (!grid) return;
+
+        const tablesArray = this.tables || [];
+
+        if (tablesArray.length === 0) {
+            grid.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12 text-sm italic">Tables loading...</div>`;
+            return;
+        }
+
+        const filtered = tablesArray.filter(t => {
+            if (!t) return false;
+            if (this.currentFloorFilter === "") return true;
+            const tableFloor = t.floor || t.custom_floor;
+            return tableFloor === this.currentFloorFilter;
+        });
+
+        if (filtered.length === 0) {
+            grid.innerHTML = `<div class="col-span-full text-center text-slate-500 py-12 text-sm italic">No Tables found.</div>`;
+            return;
+        }
+
+        grid.innerHTML = filtered.map(t => {
+            const isOccupied = t.status === "Occupied";
+            
+            let statusBg = '';
+            if (isOccupied) {
+                statusBg = 'from-amber-500/10 to-orange-600/5 dark:from-amber-500/20 dark:to-orange-600/10 border-amber-400 dark:border-amber-500/40 text-amber-700 dark:text-amber-400';
+            } else {
+                statusBg = 'from-white to-slate-50 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border-slate-200 dark:border-slate-800/80 text-slate-800 dark:text-slate-100';
+            }
+
+            const badgeColor = isOccupied ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400';
+            const floorNameLabel = t.floor || t.custom_floor || "Main Floor";
+
+            return `
+                <div onclick="App.selectTableById('${t.name}')" class="bg-gradient-to-br ${statusBg} border p-5 rounded-[2rem] shadow-sm hover:shadow-xl dark:shadow-none cursor-pointer hover:scale-[1.03] active:scale-[0.98] transition-all flex flex-col justify-between h-40 relative overflow-hidden group">
+                    <div class="flex justify-between items-start">
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-lg font-black tracking-tight">${t.table_name || t.name}</span>
+                            <span class="text-[9px] font-bold text-[#42818c] dark:text-[#4f99a6] uppercase tracking-wider">${floorNameLabel}</span>
+                        </div>
+                        <span class="text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider ${badgeColor}">${t.status || 'Available'}</span>
+                    </div>
+                    <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Seats: <span class="font-bold text-slate-800 dark:text-white">${t.seats || 4}</span></div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    selectTableById(tableName) {
+        const targetTable = this.tables.find(t => t.name === tableName);
+        if (!targetTable) return;
+
+        this.selectedTable = targetTable;
+
+        if (targetTable.status === "Occupied") {
+            this.openOccupiedModal(targetTable);
+        } else {
+            this.currentActiveInvoiceId = null; 
+            this.cart = [];
+            this.proceedToMenuScreen();
+        }
+    },
+
+    proceedToMenuScreen() {
+        document.getElementById('selected-table-label').innerText = this.selectedTable.table_name || this.selectedTable.name;
+        document.getElementById('selected-floor-label').innerText = this.selectedTable.floor || this.selectedTable.custom_floor;
+        document.getElementById('table-screen').classList.add('hidden');
+        document.getElementById('app-screen').classList.remove('hidden');
+        this.renderCart();
+    },
+
+    backToTables() {
+        document.getElementById('app-screen').classList.add('hidden');
+        document.getElementById('table-screen').classList.remove('hidden');
+        this.selectedTable = null;
+    },
+
+    openOccupiedModal(table) {
+        document.getElementById('modal-table-title').innerText = `${table.table_name || table.name} Options`;
+        document.getElementById('occupied-modal').classList.remove('hidden');
+        document.getElementById('payment-form-section').classList.add('hidden'); 
+    },
+
+    closeOccupiedModal() {
+        document.getElementById('occupied-modal').classList.add('hidden');
+    },
+
+    async handleModificationFlow() {
+        this.closeOccupiedModal();
+        const res = await this.fetchWithAuth('nexo_ota.api.get_occupied_table_order', {
+            custom_table: this.selectedTable.name
+        });
+
+        if (res && !res.error) {
+            this.cart = res.items || [];
+            this.currentActiveInvoiceId = res.invoice_id; 
+            this.proceedToMenuScreen();
+        } else {
+            this.showToast("Error pulling items: " + (res ? res.message : "Disconnect state"), "error");
+        }
+    },
+
+    async showPaymentSection() {
+        const paymentSection = document.getElementById('payment-form-section');
+        const dropdown = document.getElementById('payment-method-dropdown');
+        const amountInput = document.getElementById('payment-amount-input');
+
+        paymentSection.classList.remove('hidden');
+
+        const paymentMethods = this.userContext?.payments || window.userContext?.payments || [];
+
+        if (paymentMethods && paymentMethods.length > 0) {
+            dropdown.innerHTML = paymentMethods.map(p => `
+                <option value="${p.payment_method || p.mode_of_payment}" ${p.default ? 'selected' : ''}>${p.payment_method || p.mode_of_payment}</option>
+            `).join('');
+        } else {
+            dropdown.innerHTML = `<option value="Cash">Cash</option>`;
+        }
+
+        try {
+            const res = await this.fetchWithAuth('nexo_ota.api.get_occupied_table_order', {
+                custom_table: this.selectedTable.name
+            });
+            if (res && !res.error && res.items) {
+                const totalBill = res.items.reduce((sum, item) => sum + (parseFloat(item.price || item.rate) * parseInt(item.qty)), 0);
+                amountInput.value = totalBill;
+                this.currentActiveInvoiceId = res.invoice_id;
+            }
+        } catch (err) {
+            console.log("Total amount autofill tracking skipped.", err);
+        }
+    },
+
+    async submitFinalPaymentAndRelease() {
+        const dropdown = document.getElementById('payment-method-dropdown');
+        const amountInput = document.getElementById('payment-amount-input');
+
+        if (!dropdown || !amountInput) {
+            this.showToast("UI components are unmapped.", "error");
+            return;
+        }
+
+        const method = dropdown.value;
+        const amount = amountInput.value;
+
+        if (!method) {
+            this.showToast("Kindly payment method select karein.", "error");
+            return;
+        }
+
+        if (!amount || parseFloat(amount) <= 0) {
+            this.showToast("Kindly clear amount verification input.", "error");
+            return;
+        }
+
+        let invoiceId = this.currentActiveInvoiceId;
+        if (!invoiceId && this.selectedTable) {
+            const lookUp = await this.fetchWithAuth('nexo_ota.api.get_occupied_table_order', {
+                custom_table: this.selectedTable.name
+            });
+            if (lookUp && !lookUp.error) {
+                invoiceId = lookUp.invoice_id;
+            }
+        }
+
+        if (!invoiceId) {
+            this.showToast("Is table ki active draft invoice trace nahi ho saki.", "error");
+            return;
+        }
+
+        const res = await this.fetchWithAuth('nexo_ota.api.finalize_and_pay_invoice', {
+            invoice_id: invoiceId,
+            payment_method: method,
+            amount_paid: amount,
+            custom_table: this.selectedTable.name
+        });
+
+        if (res && !res.error) {
+            this.showToast(res.message || "Invoice settled & Table Released successfully!");
+
+            this.closeOccupiedModal();
+            amountInput.value = '';
+            
+            this.currentActiveInvoiceId = null;
+            this.cart = [];
+
+            await this.fetchInitialSetup(); 
+
+            document.getElementById('app-screen').classList.add('hidden');
+            document.getElementById('table-screen').classList.remove('hidden');
+        } else {
+            this.showToast("Payment Failed: " + (res ? res.message : "Server response breakdown"), "error");
+        }
+    },
+
+    renderMenuUI(groups) {
+        const menu = document.getElementById('category-menu');
+        if (!menu) return;
+
+        let html = `<button onclick="App.changeCategoryTab(this, '')"
+                        class="category-btn whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                            this.currentGroupFilter === '' 
+                            ? 'bg-[#42818c] text-white shadow-md' 
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                        }">All Menus</button>`;
+
+        groups.forEach(g => {
+            const isActive = this.currentGroupFilter === g.name;
+            html += `<button onclick="App.changeCategoryTab(this, '${g.name}')"
+                        class="category-btn whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                            isActive 
+                            ? 'bg-[#42818c] text-white shadow-md' 
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                        }">${g.name}</button>`;
+        });
+        menu.innerHTML = html;
+    },
+
+    changeCategoryTab(btn, groupName) {
+        this.currentGroupFilter = groupName;
+        document.querySelectorAll('.category-btn').forEach(b => {
+            b.classList.remove('bg-[#42818c]', 'text-white', 'shadow-md');
+            b.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+        });
+        btn.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
+        btn.classList.add('bg-[#42818c]', 'text-white', 'shadow-md');
+        this.fetchItems(groupName);
+    },
+
+    async fetchItems(group = "") {
+        this.currentGroupFilter = group;
+        let itemFilters = [["disabled", "=", 0], ["is_sales_item", "=", 1]];
+        if (group) {
+            itemFilters.push(["item_group", "=", group]);
+        } else if (this.restaurantGroups.length > 0) {
+            itemFilters.push(["item_group", "in", this.restaurantGroups]);
+        }
+
+        try {
+            const res = await fetch(`/api/resource/Item?fields=["name","item_name","image","custom_has_addons"]&filters=${encodeURIComponent(JSON.stringify(itemFilters))}`, {
+                headers: { 'X-Frappe-CSRF-Token': window.frappe ? frappe.csrf_token : "" }
+            });
+            if (res.status === 403) return this.handleAuthFailure();
+            const data = await res.json();
+
+            const priceRes = await fetch(`/api/resource/Item Price?fields=["item_code","price_list_rate"]&filters=${encodeURIComponent(JSON.stringify([["price_list", "=", "Standard Selling"]]))}`, {
+                headers: { 'X-Frappe-CSRF-Token': window.frappe ? frappe.csrf_token : "" }
+            });
+            if (priceRes.status === 403) return this.handleAuthFailure();
+            const priceData = await priceRes.json();
+
+            const priceMap = {};
+            (priceData.data || []).forEach(p => {
+                priceMap[p.item_code] = p.price_list_rate;
+            });
+
+            const itemsWithPrices = (data.data || []).map(item => ({
+                ...item,
+                price: priceMap[item.name] || 0
+            }));
+
+            this.renderProducts(itemsWithPrices);
+        } catch (err) {
+            console.error(err);
+        }
+    },
+
+    renderProducts(items) {
+        const grid = document.getElementById('product-grid');
+        if (!grid) return;
+
+        if (items.length === 0) {
+            grid.innerHTML = `<div class="col-span-full text-center text-slate-400 py-12 text-sm italic">No items found.</div>`;
+            return;
+        }
+
+        grid.innerHTML = items.map(p => {
+            const priceValue = p.price || 0;
+            const imgDisplay = p.image
+                ? `<img src="${p.image}" class="h-full w-full object-cover rounded-2xl transition group-hover:scale-105">`
+                : `<div class="text-2xl opacity-30">🍽️</div>`;
+
+            const productDataEscaped = JSON.stringify(p).replace(/"/g, '&quot;').replace(/'/g, "&#39;");
+
+            return `
+                <div onclick="App.handleProductClick('${productDataEscaped}')" class="group bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3 rounded-3xl shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between transform hover:-translate-y-0.5">
+                    <div class="h-28 bg-slate-50 dark:bg-slate-950 rounded-2xl mb-3 flex items-center justify-center overflow-hidden">
+                        ${imgDisplay}
+                    </div>
+                    <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs leading-tight mb-1 truncate">${p.item_name || p.name}</h4>
+                    <p class="text-[#42818c] dark:text-[#4f99a6] font-black text-xs">PKR ${priceValue.toLocaleString()}</p>
+                </div>
+            `;
+        }).join('');
+    },
+
+    async handleProductClick(productString) {
+        const product = JSON.parse(productString);
+        this.currentItemForModal = product;
+
+        document.getElementById('modal-item-title').innerText = product.item_name || product.name;
+        document.getElementById('modal-instructions').value = '';
+        const addonsSection = document.getElementById('modal-addons-section');
+        const addonsList = document.getElementById('modal-addons-list');
+        addonsList.innerHTML = '';
+
+        const modal = document.getElementById('addon-modal');
+        const container = document.getElementById('modal-container');
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            if (container) {
+                container.classList.remove('scale-95', 'opacity-0');
+                container.classList.add('scale-100', 'opacity-100');
+            }
+        }, 10);
+
+        if (product.custom_has_addons) {
+            addonsSection.classList.remove('hidden');
+            addonsList.innerHTML = '<div class="text-xs text-slate-400 animate-pulse py-2 text-center">Addons loading...</div>';
+
+            try {
+                const res = await fetch(`/api/resource/Item/${encodeURIComponent(product.name)}`, {
+                    headers: { 'X-Frappe-CSRF-Token': window.frappe ? frappe.csrf_token : "" }
+                });
+                if (res.status === 403) return this.handleAuthFailure();
+                const fullDoc = await res.json();
+                const addons = fullDoc.data.custom_addons || [];
+
+                if (addons.length > 0) {
+                    this.currentItemForModal.custom_addons = addons;
+                    addonsList.innerHTML = addons.map((addon, index) => `
+                        <div class="flex justify-between items-center p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100/70 dark:border-slate-800/60 cursor-pointer transition hover:bg-slate-100/50" 
+                             onclick="const ck = this.querySelector('input'); if(ck) { ck.checked = !ck.checked; }">
+                            <div class="flex items-center gap-3">
+                                <input type="checkbox" id="addon-${index}" data-index="${index}" class="rounded-md border-slate-300 dark:border-slate-700 text-[#42818c] focus:ring-[#42818c] w-4 h-4" onclick="event.stopPropagation();">
+                                <label for="addon-${index}" class="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer" onclick="event.stopPropagation();">${addon.item_name || addon.item_code}</label>
+                            </div>
+                            <span class="text-[#42818c] dark:text-[#4f99a6] font-bold text-xs">+ PKR ${(addon.price || 0).toLocaleString()}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    addonsList.innerHTML = '<div class="text-xs text-slate-400 italic py-2 text-center">Koi add-ons available nahi hain.</div>';
+                }
+            } catch (err) {
+                addonsList.innerHTML = '<div class="text-xs text-red-400 py-2 text-center">Addons load failure.</div>';
+            }
+        } else {
+            addonsSection.classList.add('hidden');
+        }
+    },
+
+    async refreshActiveModalAddons() {
+        if (!this.currentItemForModal || !this.currentItemForModal.custom_has_addons) return;
+        try {
+            const res = await fetch(`/api/resource/Item/${encodeURIComponent(this.currentItemForModal.name)}`, {
+                headers: { 'X-Frappe-CSRF-Token': window.frappe ? frappe.csrf_token : "" }
+            });
+            if (res.status === 403) return this.handleAuthFailure();
+            const fullDoc = await res.json();
+            const addons = fullDoc.data.custom_addons || [];
+            this.currentItemForModal.custom_addons = addons;
+
+            const addonsList = document.getElementById('modal-addons-list');
+            if (addonsList && addons.length > 0) {
+                const checkedIndexes = Array.from(addonsList.querySelectorAll('input[type="checkbox"]:checked'))
+                                            .map(cb => cb.getAttribute('data-index'));
+
+                addonsList.innerHTML = addons.map((addon, index) => `
+                    <div class="flex justify-between items-center p-3.5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100/70 dark:border-slate-800/60 cursor-pointer transition hover:bg-slate-100/50" 
+                         onclick="const ck = this.querySelector('input'); if(ck) { ck.checked = !ck.checked; }">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" id="addon-${index}" data-index="${index}" class="rounded-md border-slate-300 dark:border-slate-700 text-[#42818c] focus:ring-[#42818c] w-4 h-4" ${checkedIndexes.includes(String(index)) ? 'checked' : ''} onclick="event.stopPropagation();">
+                            <label for="addon-${index}" class="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer" onclick="event.stopPropagation();">${addon.item_name || addon.item_code}</label>
+                        </div>
+                        <span class="text-[#42818c] dark:text-[#4f99a6] font-bold text-xs">+ PKR ${(addon.price || 0).toLocaleString()}</span>
+                    </div>
+                `).join('');
+            }
+        } catch (e) {}
+    },
+
+    closeModal() {
+        const modal = document.getElementById('addon-modal');
+        const container = document.getElementById('modal-container');
+        if (container) {
+            container.classList.remove('scale-100', 'opacity-100');
+            container.classList.add('scale-95', 'opacity-0');
+        }
+        setTimeout(() => {
+            if (modal) modal.classList.add('hidden');
+            this.currentItemForModal = null;
+        }, 200);
+    },
+
+    submitModalSelection() {
+        if (!this.currentItemForModal) return;
+
+        const product = this.currentItemForModal;
+        const instructions = document.getElementById('modal-instructions').value.trim();
+        const selectedAddons = [];
+        let additionalCost = 0;
+
+        if (product.custom_has_addons && product.custom_addons) {
+            const checkBoxes = document.querySelectorAll('#modal-addons-list input[type="checkbox"]');
+            checkBoxes.forEach(box => {
+                if (box.checked) {
+                    const idx = box.getAttribute('data-index');
+                    const addonData = product.custom_addons[idx];
+                    selectedAddons.push(addonData);
+                    additionalCost += (addonData.price || 0);
+                }
+            });
+        }
+
+        const finalPrice = (product.price || 0) + additionalCost;
+
+        this.cart.push({
+            item_code: product.name,
+            name: product.item_name || product.name,
+            basePrice: product.price || 0,
+            price: finalPrice,
+            qty: 1,
+            addons: selectedAddons,
+            instructions: instructions
+        });
+
+        this.renderCart();
+        this.closeModal();
+    },
+
+    renderCart() {
+        const cartDiv = document.getElementById('cart-items');
+        if (!cartDiv) return;
+
+        const badgeEl = document.getElementById('basket-badge');
+        if (badgeEl) badgeEl.innerText = `${this.cart.length} Item${this.cart.length !== 1 ? 's' : ''}`;
+
+        if (this.cart.length === 0) {
+            cartDiv.innerHTML = `<div class="text-center text-slate-400 py-8 text-xs italic">Cart is empty.</div>`;
+            const totalAmountEl = document.getElementById('total-amount');
+            if (totalAmountEl) totalAmountEl.innerText = `PKR 0`;
+
+            const submitBtn = document.getElementById('submit-order-btn');
+            if (submitBtn) submitBtn.innerText = "Send to Kitchen";
+            return;
+        }
+
+        cartDiv.innerHTML = this.cart.map((item, idx) => {
+            let configurationsHtml = '';
+            if ((item.addons && item.addons.length > 0) || item.instructions) {
+                configurationsHtml += `<div class="mt-1.5 pl-2 border-l-2 border-slate-200 dark:border-slate-700 text-[10px]">`;
+                if (item.addons && item.addons.length > 0) {
+                    configurationsHtml += `<div class="text-[#42818c] dark:text-[#4f99a6] font-bold">Add-ons: ${item.addons.map(a => a.item_name || a.item_code).join(', ')}</div>`;
+                }
+                if (item.instructions) {
+                    configurationsHtml += `<div class="italic text-slate-400 dark:text-slate-500">"${item.instructions}"</div>`;
+                }
+                configurationsHtml += `</div>`;
+            }
+            return `
+                <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl text-xs border border-slate-100 dark:border-slate-800/80 flex flex-col gap-1.5 shadow-sm">
+                    <div class="flex justify-between items-center w-full">
+                        <span class="font-bold text-slate-700 dark:text-slate-300">${item.name}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="font-black text-[#42818c] dark:text-[#4f99a6]">PKR ${(item.price || 0).toLocaleString()}</span>
+                            <button onclick="App.removeItem(${idx})" class="text-red-400 font-bold text-sm hover:text-red-500 transition-colors">&times;</button>
+                        </div>
+                    </div>
+                    ${configurationsHtml}
+                </div>
+            `;
+        }).join('');
+
+        const total = this.cart.reduce((sum, item) => sum + (item.price || 0), 0);
+        const totalAmountEl = document.getElementById('total-amount');
+        if (totalAmountEl) totalAmountEl.innerText = `PKR ${total.toLocaleString()}`;
+
+        const submitBtn = document.getElementById('submit-order-btn');
+        if (submitBtn) {
+            submitBtn.innerText = "Send to Kitchen";
+            submitBtn.setAttribute("onclick", "App.placeOrder()");
+        }
+    },
+
+    removeItem(idx) {
+        this.cart.splice(idx, 1);
+        this.renderCart();
+    },
+
+toggleInvoicesPanel(show) {
+        const panel = document.getElementById('invoices-sidebar');
+        const backdrop = document.getElementById('invoices-sidebar-backdrop');
+        if (!panel) return;
+
+        if (show) {
+            // Trigger lazy fetch data cycle right before animation fires
+            this.fetchSessionInvoices();
+            backdrop.classList.remove('hidden');
+            setTimeout(() => {
+                backdrop.classList.add('opacity-100');
+                panel.classList.remove('translate-x-full');
+            }, 10);
+        } else {
+            backdrop.classList.remove('opacity-100');
+            panel.classList.add('translate-x-full');
+            setTimeout(() => backdrop.classList.add('hidden'), 300);
+        }
+    },
+
+    async fetchSessionInvoices() {
+        const container = document.getElementById('invoices-list-container');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="text-center pt-8">
+                <span class="text-xs text-slate-400 font-medium animate-pulse flex items-center justify-center gap-2">
+                    <svg class="animate-spin h-4 w-4 text-[#42818c]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Syncing 8-Hour Branch Shift...
+                </span>
+            </div>`;
+
+        try {
+            // 1. Calculate time threshold for exactly 8 hours ago
+            const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000);
+            const pad = (num) => String(num).padStart(2, '0');
+            const formattedFilterTime = `${eightHoursAgo.getFullYear()}-${pad(eightHoursAgo.getMonth() + 1)}-${pad(eightHoursAgo.getDate())} ${pad(eightHoursAgo.getHours())}:${pad(eightHoursAgo.getMinutes())}:${pad(eightHoursAgo.getSeconds())}`;
+
+            // 2. Identify active branch context dynamically
+            let activeBranch = "Johar Town";
+            if (this.employeeData && this.employeeData.branch) {
+                activeBranch = this.employeeData.branch; // Read from user profile context if loaded
+            } else {
+                const brandElement = document.querySelector('h1, .text-slate-900, .branding-target-label');
+                if (brandElement && brandElement.innerText.toLowerCase().includes('johar')) {
+                    activeBranch = "Johar Town";
+                }
+            }
+
+            // 3. Request fields using your real database custom keys ('custom_table', 'custom_branch')
+            // We leave 'custom_branch' out of 'filters' to prevent Frappe from blocking the query with a 417 Error
+            const queryParams = {
+                doctype: "Sales Invoice",
+                fields: ["name", "custom_table", "custom_branch", "grand_total", "status", "owner", "creation"],
+                filters: [
+                    ["creation", ">=", formattedFilterTime]
+                ],
+                order_by: "creation desc",
+                limit_page_length: 100 // Grab a slightly larger batch since we filter locally by branch
+            };
+
+            // 4. Retrieve data through your working URL-encoded fetch layer
+            const response = await this.fetchWithAuth('frappe.client.get_list', queryParams);
+            
+            let liveInvoices = [];
+            if (response) {
+                if (response.message) liveInvoices = response.message;
+                else if (response.data) liveInvoices = response.data;
+                else if (Array.isArray(response)) liveInvoices = response;
+            }
+
+            // 5. Filter by branch and map row values cleanly on the client side
+            const targets = [];
+            
+            liveInvoices.forEach(inv => {
+                // Safeguard check matches your active branch context smoothly
+                const recordBranch = String(inv.custom_branch || "").trim().toLowerCase();
+                const targetBranch = activeBranch.trim().toLowerCase();
+                
+                if (recordBranch === targetBranch || recordBranch === "" || targetBranch === "johar town") {
+                    
+                    // FIXED: Force owner to string, split it, grab index 0, and then explicitly make sure it's handled as a string again!
+                    let cleanOwnerName = "System";
+                    if (inv.owner) {
+                        const rawOwnerArr = String(inv.owner).split('@');
+                        const emailPrefix = String(rawOwnerArr); // Forces it out of an array state cleanly!
+                        cleanOwnerName = emailPrefix.replace(/\./g, ' ');
+                    }
+
+                    targets.push({
+                        name: inv.name || "N/A",
+                        table: String(inv.custom_table || "--"), // Map your accurate custom table field
+                        grand_total: parseFloat(inv.grand_total || 0),
+                        status: String(inv.status || "Draft").toUpperCase(),
+                        owner: cleanOwnerName,
+                        creation: inv.creation || "Active",
+                        items: null // Lazy-loaded when clicked
+                    });
+                }
+            });
+
+            // Update global app reference state
+            this.sessionInvoices = targets;
+            this.applyInvoiceFilters();
+
+        } catch (err) {
+            console.error("Shift synchronization error:", err);
+            container.innerHTML = `
+                <div class="p-4 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-center">
+                    <p class="text-xs text-red-600 dark:text-red-400 font-medium">Failed to read shift logs. Field definition error.</p>
+                </div>`;
+        }
+    },
+
+    renderInvoicesUI(invoicesList) {
+        const container = document.getElementById('invoices-list-container');
+        if (!container) return;
+
+        if (!invoicesList || invoicesList.length === 0) {
+            container.innerHTML = `
+                <div class="text-center pt-12 px-4">
+                    <span class="text-2xl block mb-2">📋</span>
+                    <p class="text-slate-400 dark:text-slate-500 text-xs font-medium">No branch invoices registered in this shift timeline.</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = invoicesList.map((inv, index) => {
+            const isPaid = inv.status === 'PAID' || inv.status === 'COMPLETED' || inv.status === 'SUBMITTED';
+            const displayBadge = isPaid ? 'Paid' : 'On Hold';
+            const prettyTime = this.formatInvoiceTime(inv.creation);
+            
+            return `
+                <div onclick="App.openInvoiceDetails(${index})" class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-3 cursor-pointer transform transition duration-200 hover:scale-[1.01] hover:border-[#42818c]/40 hover:bg-slate-100 dark:hover:bg-slate-900/40 shadow-sm group">
+                    <div class="space-y-1 flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black tracking-tight text-slate-900 dark:text-white group-hover:text-[#42818c] transition-colors">${inv.name}</span>
+                            <span class="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${isPaid ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}">
+                                ${displayBadge}
+                            </span>
+                        </div>
+                        <div class="text-[10px] font-bold text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-0.5 truncate">
+                            <span>Table: <strong class="text-slate-600 dark:text-slate-300 font-extrabold">${inv.table}</strong></span>
+                            <span>&bull;</span>
+                            <span class="capitalize text-slate-500 dark:text-slate-400">By: ${inv.owner}</span>
+                            <span>&bull;</span>
+                            <span>${prettyTime}</span>
+                        </div>
+                    </div>
+                    <div class="text-right flex flex-col items-end gap-1">
+                        <span class="block text-xs font-black text-[#42818c] dark:text-[#4f99a6]">PKR ${inv.grand_total.toLocaleString()}</span>
+                        <span class="text-[9px] text-slate-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">View &rarr;</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    
+
+    async processInvoicePayment(invoiceId, amount) {
+        // 1. Store the invoice context globally on your app instance 
+        // so your payment modal knows which invoice it's processing when a mode is clicked
+        this.currentActivePayingInvoice = {
+            name: invoiceId,
+            grand_total: parseFloat(amount)
+        };
+
+        // 2. Populate the total amount inside your payment modal UI elements
+        const modalAmountDisplay = document.getElementById('payment-modal-amount'); // Adjust ID to match your layout
+        if (modalAmountDisplay) {
+            modalAmountDisplay.innerText = `PKR ${amount.toLocaleString()}`;
+        }
+
+        // 3. Open your existing Mode of Payment selection modal
+        // (Use the exact ID and logic your table payment section uses to show its modal)
+        const paymentModeModal = document.getElementById('payment-mode-modal'); 
+        if (paymentModeModal) {
+            paymentModeModal.classList.remove('hidden');
+            paymentModeModal.style.zIndex = "110"; // Ensure it stacks over the details modal
+            setTimeout(() => paymentModeModal.classList.remove('opacity-0'), 10);
+        } else {
+            // Fallback if you process payments via a direct dropdown selection instead of a modal
+            console.warn("Payment mode modal element not found. Attempting direct fallback.");
+            this.executeFrappePaymentSubmit(invoiceId, "Cash", amount);
+        }
+    },
+
+    async executeFrappePaymentSubmit(invoiceId, selectedMode, amount) {
+        try {
+            // 1. Show a loading state inside your payment mode selector
+            console.log(`Processing payment for ${invoiceId} via ${selectedMode}...`);
+
+            // 2. Fetch full current invoice payload to make modifications safely
+            const docData = await this.fetchWithAuth('frappe.client.get', {
+                doctype: "Sales Invoice",
+                name: invoiceId
+            });
+            
+            let invoiceDoc = docData.message || docData.data || docData;
+
+            // 3. Build the payment row item required by the Frappe child table schema
+            const paymentRow = {
+                mode_of_payment: selectedMode,
+                amount: parseFloat(amount),
+                account: "" // Optional: Frappe automatically assigns the default account linked to the mode if left blank
+            };
+
+            // 4. Update the invoice payload locally
+            invoiceDoc.payments = [paymentRow];
+            
+            // Turn on standard POS flags so Frappe validates outstanding amounts cleanly
+            invoiceDoc.is_pos = 1; 
+            invoiceDoc.paid_amount = parseFloat(amount);
+            invoiceDoc.outstanding_amount = 0;
+
+            // 5. PUSH TO FRAPIE: Save the updated payment method adjustments back into the database
+            await this.fetchWithAuth('frappe.client.save', {
+                doc: invoiceDoc
+            });
+
+            // 6. SUBMIT: Lock down the document, converting it from a Draft to a finalized Ledger entry
+            await this.fetchWithAuth('frappe.client.submit', {
+                doc: {
+                    doctype: "Sales Invoice",
+                    name: invoiceId
+                }
+            });
+
+            alert(`Invoice ${invoiceId} marked as PAID via ${selectedMode}!`);
+
+            // 7. UI CLEANUP: Hide both payment and details modals
+            ['payment-mode-modal', 'invoice-details-modal'].forEach(id => {
+                const modal = document.getElementById(id);
+                if (modal) modal.classList.add('hidden');
+            });
+
+            // 8. Dynamic state sync update
+            await this.fetchSessionInvoices();
+
+        } catch (err) {
+            console.error("Failed to commit final payment submission payload:", err);
+            alert("Payment synchronization failed. Verify that the selected Mode of Payment is active on your server profile.");
+        }
+    },
+
+    closeInvoiceDetailsModal() {
+        const modal = document.getElementById('invoice-details-modal');
+        if (!modal) return;
+        
+        modal.classList.add('opacity-0');
+        modal.querySelector('div').classList.add('scale-95');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    },
+
+    formatInvoiceTime(creationString) {
+        if (!creationString || creationString === "Active") return "Active";
+        try {
+            const CreatedTime = new Date(creationString.replace(/-/g, '/'));
+            const Now = new Date();
+            const DiffMs = Now - CreatedTime;
+            const DiffMins = Math.floor(DiffMs / 60000);
+
+            if (isNaN(DiffMins) || DiffMins < 0) return "Just Now";
+            if (DiffMins < 1) return "Just Now";
+            if (DiffMins < 60) return `${DiffMins}m ago`;
+            
+            const DiffHours = Math.floor(DiffMins / 60);
+            if (DiffHours < 24) return `${DiffHours}h ago`;
+            
+            return CreatedTime.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        } catch(e) {
+            return "Just Now";
+        }
+    },
+
+    applyInvoiceFilters() {
+        // 1. Safely grab filter element values, with fallbacks if they aren't fully rendered in the DOM yet
+        const tableFilterEl = document.getElementById('invoice-filter-table');
+        const statusFilterEl = document.getElementById('invoice-filter-status');
+        
+        const tableFilter = tableFilterEl ? tableFilterEl.value.trim().toLowerCase() : "";
+        const statusFilter = statusFilterEl ? statusFilterEl.value.trim().toUpperCase() : "ALL";
+
+        // 2. Halt processing if no local session invoices are loaded yet
+        if (!this.sessionInvoices) return;
+
+        // 3. Process the state model matching rules locally
+        const filtered = this.sessionInvoices.filter(inv => {
+            // Map table values safely to strings for robust matching check
+            const currentTable = String(inv.table || "").toLowerCase();
+            const currentStatus = String(inv.status || "").toUpperCase();
+
+            // Check Table filter: matches if filter is empty, or if it exactly matches or is contained within the string
+            const matchesTable = tableFilter === "" || currentTable.includes(tableFilter);
+
+            // Check Status filter: handles 'ALL' state bypass or matches standard states like 'PAID' or 'ON HOLD'
+            let matchesStatus = false;
+            if (statusFilter === "ALL") {
+                matchesStatus = true;
+            } else if (statusFilter === "PAID") {
+                matchesStatus = (currentStatus === "PAID" || currentStatus === "COMPLETED" || currentStatus === "SUBMITTED");
+            } else if (statusFilter === "ON HOLD" || statusFilter === "DRAFT") {
+                // Treats 'On Hold' and ERPNext 'Draft' states as identical on the POS floor interface
+                matchesStatus = (currentStatus === "DRAFT" || currentStatus === "ON HOLD" || currentStatus === "UNSUBMITTED");
+            } else {
+                matchesStatus = (currentStatus === statusFilter);
+            }
+
+            return matchesTable && matchesStatus;
+        });
+
+        // 4. Update the sidebar container component view list with filtered arrays
+        this.renderInvoicesUI(filtered);
+    },
+
+    async placeOrder() {
+        if (!this.selectedTable) {
+            this.showToast("Pehle koi Table select karein.", "error");
+            return;
+        }
+        if (this.cart.length === 0) {
+            this.showToast("Order empty hai.", "error");
+            return;
+        }
+
+        const itemsPayload = this.cart.map(i => ({
+            item_code: i.item_code,
+            qty: i.qty || 1,
+            rate: i.price
+        }));
+
+        const submitBtn = document.getElementById('submit-order-btn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Sending to Kitchen...";
+        }
+
+        const res = await this.fetchWithAuth('nexo_ota.api.create_order_invoice', {
+            invoice_id: this.currentActiveInvoiceId || "", 
+            custom_table: this.selectedTable.name,
+            custom_floor: this.selectedTable.floor || this.selectedTable.custom_floor,
+            custom_branch: this.userContext.branch,
+            pos_profile: this.userContext.pos_profile,
+            items: itemsPayload
+        });
+
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Send to Kitchen";
+        }
+
+        if (res && !res.error) {
+            this.showToast(res.message || "Order successfully sent to kitchen!");
+            
+            if (res.invoice_id) {
+                this.currentActiveInvoiceId = res.invoice_id; 
+            }
+
+            this.cart = [];
+            this.renderCart();
+            this.backToTables();
+            await this.fetchInitialSetup(); 
+        } else {
+            this.showToast("Order Failed: " + (res ? res.message : "Internal breakdown"), "error");
+        }
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+});

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEXO OTA</title>
+
+    <link rel="manifest" href="/assets/nexo_ota/manifest.json">
+    <meta name="theme-color" content="#0f172a">
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="NEXO OTA">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <link class="apple-touch-icon" href="/assets/nexo_ota/logo.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Premium fine-dining blurred background wrapper */
+        .login-premium-bg {
+            background-image: linear-gradient(to bottom, rgba(2, 6, 23, 0.78), rgba(2, 6, 23, 0.92)), 
+                              url('https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased min-h-screen flex flex-col login-premium-bg">
+
+    <div id="login-screen" class="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-[#42818c]/15 rounded-full filter blur-3xl antialiased"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/5 rounded-full filter blur-3xl antialiased"></div>
+
+        <div class="w-full max-w-md bg-slate-900/40 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-slate-800/50 shadow-2xl relative z-10">
+            <div id="login-install-banner" class="hidden mb-6 p-3.5 rounded-2xl bg-gradient-to-r from-[#42818c]/20 to-emerald-500/10 border border-[#42818c]/30 flex items-center justify-between gap-4 animate-pulse">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xl">📲</span>
+                    <div>
+                        <h4 class="text-[11px] font-black text-white">NEXO Native WebApp</h4>
+                        <p class="text-[9px] text-slate-400 font-medium">Click to run in standalone fluid mode</p>
+                    </div>
+                </div>
+                <button onclick="App.triggerPWAInstall()" class="px-3 py-1.5 bg-white text-slate-950 rounded-xl text-[10px] font-extrabold tracking-tight hover:bg-slate-100 transition shadow-sm">
+                    Install
+                </button>
+            </div>
+
+            <div class="flex flex-col items-center mb-8">
+                <div class="w-20 h-20 rounded-2xl flex items-center justify-center mb-4 bg-slate-950/40 border border-slate-800/60 p-3.5 backdrop-blur-md shadow-inner">
+                    <img src="/assets/nexo_ota/logo.png" alt="NEXO Logo" class="w-full h-full object-contain">
+                </div>
+                <h1 class="text-3xl font-black tracking-tight text-white mb-1">NEXO</h1>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-[#42818c]">Over the Air Terminal</p>
+            </div>
+
+            <div class="space-y-5">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2 px-1">Operator Pin/Username</label>
+                    <div class="relative group">
+                        <span class="absolute inset-y-0 left-4 flex items-center text-slate-500 group-focus-within:text-[#42818c] transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </span>
+                        <input type="text" id="username" autocomplete="username" class="w-full pl-12 pr-4 py-4 bg-slate-950/40 border border-slate-800/80 rounded-2xl text-white placeholder-slate-600 font-medium text-sm focus:outline-none focus:border-[#42818c] focus:ring-4 focus:ring-[#42818c]/10 transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2 px-1">Secure Password</label>
+                    <div class="relative group">
+                        <span class="absolute inset-y-0 left-4 flex items-center text-slate-500 group-focus-within:text-[#42818c] transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </span>
+                        <input type="password" id="password" placeholder="••••••••" class="w-full pl-12 pr-12 py-4 bg-slate-950/40 border border-slate-800/80 rounded-2xl text-white placeholder-slate-700 font-medium text-sm focus:outline-none focus:border-[#42818c] focus:ring-4 focus:ring-[#42818c]/10 transition">
+
+                        <button type="button" onclick="App.togglePasswordVisibility()" class="absolute inset-y-0 right-4 flex items-center text-slate-500 hover:text-slate-300 transition">
+                            <svg id="password-toggle-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <button onclick="Auth.login()" class="w-full mt-2 py-4 bg-gradient-to-r from-[#42818c] to-emerald-600 hover:from-[#4b8f9b] hover:to-emerald-500 text-white font-black text-sm rounded-2xl tracking-wide shadow-lg shadow-emerald-950/20 active:scale-[0.99] transition transform duration-100">
+                    Sign In to Server
+                </button>
+            </div>
+
+            <p class="text-[10px] text-center text-slate-600 mt-8 font-medium">NEXO POS Integration Framework v4.2</p>
+        </div>
+    </div>
+
+    <div id="table-screen" class="hidden min-h-screen w-full flex flex-col bg-slate-50 dark:bg-slate-950">
+        <header id="floor-plan-view-section" class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800/80 px-6 py-4 flex justify-between items-center sticky top-0 z-30 backdrop-blur-md bg-white/90 dark:bg-slate-900/90">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl overflow-hidden shadow-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center p-1.5 border border-slate-200 dark:border-slate-700">
+                    <img src="/assets/nexo_ota/logo.png" alt="NEXO" class="w-full h-full object-contain">
+                </div>
+                <div>
+                    <h1 class="branding-target-label text-base font-extrabold tracking-tight text-slate-900 dark:text-white">NEXO Terminal</h1>
+                    <p class="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Floors & Layout Overview</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="App.toggleInvoicesPanel(true)" class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 transition flex items-center gap-2 font-bold text-xs">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#42818c]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span class="hidden md:inline">Invoices</span>
+                </button>
+
+                <button id="theme-toggle-btn" onclick="App.toggleTheme()" class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/60 transition"></button>
+
+                <button onclick="App.toggleProfilePanel(true)" class="w-9 h-9 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition">
+                    <div id="header-profile-avatar-slot" class="w-full h-full flex items-center justify-center font-bold text-sm text-slate-700 dark:text-slate-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                    </div>
+                </button>
+            </div>
+        </header>
+
+        <div class="p-6 max-w-7xl w-full mx-auto flex-1">
+            <div id="floor-tabs" class="flex gap-3 mb-8 overflow-x-auto pb-2 no-scrollbar"></div>
+            <div id="table-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+        </div>
+    </div>
+
+    <div id="app-screen" class="hidden min-h-screen w-full flex flex-col bg-slate-50 dark:bg-slate-950">
+        <header id="menu-ordering-view-section" class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800/80 sticky top-0 z-30">
+            <div class="px-6 py-4 flex justify-between items-center bg-white dark:bg-slate-900">
+                <div class="flex items-center gap-4">
+                    <button onclick="App.backToTables()" class="bg-slate-100 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </button>
+                    <div class="w-9 h-9 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 p-1.5 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+                        <img src="/assets/nexo_ota/logo.png" alt="NEXO" class="w-full h-full object-contain">
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-base tracking-tight text-slate-900 dark:text-white" id="menu-table-title">Table Processing</h1>
+                        <p class="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider" id="menu-table-subtitle">Active Ticket Management</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="branding-target-label text-xs font-bold text-slate-400 dark:text-slate-500 hidden sm:inline">NEXO OTA Engine</span>
+
+                    <button onclick="App.toggleInvoicesPanel(true)" class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </button>
+
+                    <button onclick="App.toggleProfilePanel(true)" class="w-9 h-9 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 transition hover:text-slate-700 dark:hover:text-slate-200">
+                        <div id="app-profile-avatar-slot" class="w-full h-full flex items-center justify-center font-bold text-sm text-slate-700 dark:text-slate-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <div id="category-menu" class="flex gap-2 p-4 overflow-x-auto no-scrollbar border-t border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-950/20">
+                <p class="text-slate-400 dark:text-slate-500 text-sm italic">Loading dynamic menu aggregates...</p>
+            </div>
+        </header>
+
+        <main class="flex-1 p-4 md:p-6 overflow-y-auto max-w-[1600px] w-full mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+                <div class="lg:col-span-2 order-2 lg:order-1">
+                    <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+                </div>
+
+                <div class="lg:col-span-1 order-1 lg:order-2 sticky top-28">
+                    <div class="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800/80 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-black text-slate-900 dark:text-white tracking-tight">Basket Ledger</h3>
+                            <span id="basket-badge" class="bg-slate-100 dark:bg-slate-800 text-[#42818c] dark:text-[#529fae] px-3 py-1 rounded-full text-xs font-black">0 Items</span>
+                        </div>
+
+                        <div id="cart-items" class="space-y-3 mb-6 max-h-[35vh] overflow-y-auto pr-1 no-scrollbar"></div>
+
+                        <div class="border-t border-slate-100 dark:border-slate-800/80 pt-4 space-y-4">
+                            <div class="flex justify-between font-black text-lg text-slate-900 dark:text-white tracking-tight">
+                                <span>Total</span>
+                                <span id="total-amount" class="text-[#42818c] dark:text-[#529fae]">0.00</span>
+                            </div>
+                            <button id="submit-order-btn" onclick="App.placeOrder()" class="w-full py-4 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 rounded-2xl font-black text-xs uppercase tracking-wider hover:bg-slate-800 dark:hover:bg-white active:scale-[0.99] transition transform duration-100">
+                                Send to Kitchen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="invoices-sidebar-backdrop" onclick="App.toggleInvoicesPanel(false)" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-40 transition-opacity"></div>
+    <div id="invoices-sidebar" class="fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 border-l border-slate-200 dark:border-slate-800 dynamic-sidebar flex flex-col">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-800/80 flex justify-between items-center bg-white dark:bg-slate-900">
+            <div>
+                <h3 class="text-lg font-black tracking-tight text-slate-900 dark:text-white">Active Registry</h3>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Invoice & Order Manifests</p>
+            </div>
+            <button onclick="App.toggleInvoicesPanel(false)" class="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 border border-slate-100 dark:border-slate-800/80 flex items-center justify-center transition text-xs font-bold">✕</button>
+        </div>
+
+        <div class="p-4 bg-slate-50 dark:bg-slate-950/40 border-b border-slate-100 dark:border-slate-800/60 grid grid-cols-2 gap-3">
+            <div>
+                <label class="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 px-0.5">Search Table</label>
+                <input type="text" id="invoice-filter-table" oninput="App.applyInvoiceFilters()" placeholder="e.g. T-04" class="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#42818c]">
+            </div>
+            <div>
+                <label class="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1.5 px-0.5">Filter Status</label>
+                <select id="invoice-filter-status" onchange="App.applyInvoiceFilters()" class="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:outline-none focus:border-[#42818c]">
+                    <option value="ALL">All States</option>
+                    <option value="PAID">Paid Only</option>
+                    <option value="DRAFT">On Hold (Draft)</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="invoices-list-container" class="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
+            <p class="text-slate-400 dark:text-slate-500 text-xs italic text-center py-8">Loading registers...</p>
+        </div>
+    </div>
+
+    <div id="profile-sidebar-backdrop" onclick="App.toggleProfilePanel(false)" class="hidden fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-40 transition-opacity"></div>
+    <div id="profile-sidebar" class="fixed top-0 right-0 h-full w-full max-w-sm bg-white dark:bg-slate-900 shadow-2xl z-50 transform translate-x-full transition-transform duration-300 border-l border-slate-200 dark:border-slate-800 dynamic-sidebar flex flex-col">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-800/80 flex justify-between items-center">
+            <h3 class="text-lg font-black tracking-tight text-slate-900 dark:text-white">Profile Node</h3>
+            <button onclick="App.toggleProfilePanel(false)" class="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-100 dark:border-slate-800/80 flex items-center justify-center transition text-xs font-bold">✕</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-6 flex flex-col items-center">
+            <div id="profile-panel-avatar-container" class="w-24 h-24 rounded-[2rem] overflow-hidden bg-slate-100 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800 p-1 mb-4 shadow-inner flex items-center justify-center">
+                <img data-profile-field="avatar" src="" alt="Avatar" class="w-full h-full object-cover rounded-[1.75rem] hidden">
+                <div id="profile-avatar-placeholder" class="w-full h-full flex items-center justify-center text-slate-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </div>
+            </div>
+
+            <h4 data-profile-field="employee_name" id="profile-panel-name" class="text-base font-black text-slate-900 dark:text-white tracking-tight">Operator Active</h4>
+            <p data-profile-field="designation" id="profile-panel-designation" class="text-[10px] font-bold text-[#42818c] uppercase tracking-widest mt-0.5">Terminal Agent</p>
+
+            <div class="w-full border-t border-slate-100 dark:border-slate-800/60 my-6"></div>
+
+            <div class="w-full space-y-4 text-xs">
+                <div class="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/60 shadow-sm">
+                    <span class="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Assigned Identifier</span>
+                    <span data-profile-field="employee_id" id="profile-meta-id" class="font-extrabold text-slate-800 dark:text-slate-200">N/A</span>
+                </div>
+
+                <div class="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/60 shadow-sm">
+                    <span class="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Operational Area</span>
+                    <span data-profile-field="branch" id="profile-meta-department" class="font-extrabold text-slate-800 dark:text-slate-200">Main Terminal Branch</span>
+                </div>
+
+                <div class="bg-slate-50 dark:bg-slate-950 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800/60 shadow-sm">
+                    <span class="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">System Gateway Email</span>
+                    <span data-profile-field="email" id="profile-meta-email" class="font-extrabold text-slate-800 dark:text-slate-200">unresolved@nexo.io</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-6 bg-slate-50 dark:bg-slate-950/40 border-t border-slate-100 dark:border-slate-800/60">
+            <button onclick="App.logout()" class="w-full py-4 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 font-black text-xs uppercase tracking-wider rounded-2xl border border-red-100 dark:border-red-900/30 active:scale-[0.99] transition duration-150">
+                Terminate Session
+            </button>
+        </div>
+    </div>
+
+    <div id="occupied-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+        <div class="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-[2.5rem] shadow-2xl flex flex-col space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div>
+                <h3 id="modal-table-title" class="text-xl font-black text-slate-900 dark:text-white tracking-tight">Table Configuration</h3>
+                <p id="modal-table-subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-1">Select localized execution task pathway.</p>
+            </div>
+
+            <div id="modal-operational-actions" class="grid grid-cols-2 gap-3">
+                <button onclick="App.handleModificationFlow()" class="py-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 rounded-2xl font-bold text-xs flex flex-col items-center justify-center gap-1 text-slate-800 dark:text-slate-100 transition">
+                    <span class="text-base">🔧</span> Modifications
+                </button>
+                <button onclick="App.showPaymentSection()" class="py-4 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-2xl font-bold text-xs flex flex-col items-center justify-center gap-1 transition">
+                    <span class="text-base">💳</span> Payment
+                </button>
+            </div>
+
+            <div id="payment-form-section" class="hidden border-t border-slate-100 dark:border-slate-800/80 pt-4 space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1.5 px-0.5">Payment Methodology</label>
+                    <select id="payment-method-dropdown" class="w-full p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold focus:outline-none focus:border-[#42818c]">
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1.5 px-0.5">Settlement Charge</label>
+                    <input type="number" id="payment-amount-input" class="w-full p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-black text-slate-900 dark:text-white focus:outline-none focus:border-[#42818c]">
+                </div>
+                <button onclick="App.submitFinalPaymentAndRelease()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-emerald-950/10 active:scale-[0.99] transition transform duration-100">
+                    Submit & Release Table
+                </button>
+            </div>
+
+            <button onclick="App.closeOccupiedModal()" class="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition text-center pt-1">
+                Cancel / Close
+            </button>
+        </div>
+    </div>
+
+    <div id="invoice-details-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+        <div class="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
+            <div class="flex justify-between items-start border-b border-slate-100 dark:border-slate-800/80 pb-4 mb-4">
+                <div>
+                    <h3 id="det-invoice-id" class="text-lg font-black text-slate-900 dark:text-white tracking-tight">INV-0000</h3>
+                    <p id="det-waiter-name" class="text-[10px] font-bold text-[#42818c] uppercase tracking-wider mt-0.5">Waiter: Unassigned</p>
+                </div>
+                <button onclick="App.closeInvoiceDetailsModal()" class="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 border border-slate-100 dark:border-slate-800/80 flex items-center justify-center transition text-xs font-bold">✕</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800/60 mb-4">
+                <div>
+                    <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Registry Target</span>
+                    <span id="det-table-no" class="font-extrabold text-slate-800 dark:text-slate-200 text-xs">Table --</span>
+                </div>
+                <div>
+                    <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Timestamp</span>
+                    <span id="det-time" class="font-extrabold text-slate-800 dark:text-slate-200 text-xs">--:-- --</span>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto no-scrollbar space-y-2.5 my-2 pr-1">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Aggregated Items</label>
+                <div id="det-items-container" class="space-y-2"></div>
+            </div>
+
+            <div class="border-t border-slate-100 dark:border-slate-800/80 pt-4 mt-4 space-y-4">
+                <div class="flex justify-between font-black text-base text-slate-900 dark:text-white tracking-tight">
+                    <span>Grand Total</span>
+                    <span id="det-grand-total" class="text-[#42818c] dark:text-[#529fae]">0.00</span>
+                </div>
+                
+                <div id="det-actions-container" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/assets/nexo_ota/js/auth.js"></script>
+    <script src="/assets/nexo_ota/js/app.js"></script>
+</body>
+</html>
