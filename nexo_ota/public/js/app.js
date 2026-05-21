@@ -101,6 +101,22 @@ const App = {
         }
     },
 
+    toggleCartPanel(open = true) {
+        const backdrop = document.getElementById('cart-sidebar-backdrop');
+        const panel = document.getElementById('cart-sidebar');
+        if (!backdrop || !panel) return;
+
+        if (open) {
+            backdrop.classList.remove('pointer-events-none', 'opacity-0');
+            backdrop.classList.add('opacity-100');
+            panel.classList.remove('translate-x-full');
+        } else {
+            backdrop.classList.remove('opacity-100');
+            backdrop.classList.add('opacity-0', 'pointer-events-none');
+            panel.classList.add('translate-x-full');
+        }
+    },
+
     injectToastContainer() {
         if (document.getElementById('toast-container')) return;
         const container = document.createElement('div');
@@ -1511,19 +1527,31 @@ const App = {
         if (!cartDiv) return;
 
         const badgeEl = document.getElementById('basket-badge');
-        if (badgeEl) badgeEl.innerText = `${this.cart.length} Item${this.cart.length !== 1 ? 's' : ''}`;
+        const mobileBadgeEl = document.getElementById('basket-badge-mobile');
+        const sidebarCartDiv = document.getElementById('cart-sidebar-items');
+        const sidebarTotalEl = document.getElementById('cart-sidebar-total-amount');
+        const sidebarSubmitBtn = document.getElementById('cart-sidebar-submit-btn');
+
+        const badgeText = `${this.cart.length} Item${this.cart.length !== 1 ? 's' : ''}`;
+        if (badgeEl) badgeEl.innerText = badgeText;
+        if (mobileBadgeEl) mobileBadgeEl.innerText = badgeText;
 
         if (this.cart.length === 0) {
-            cartDiv.innerHTML = `<div class="text-center text-slate-400 py-8 text-xs italic">Cart is empty.</div>`;
+            const emptyHtml = `<div class="text-center text-slate-400 py-8 text-xs italic">Cart is empty.</div>`;
+            cartDiv.innerHTML = emptyHtml;
+            if (sidebarCartDiv) sidebarCartDiv.innerHTML = emptyHtml;
+
             const totalAmountEl = document.getElementById('total-amount');
             if (totalAmountEl) totalAmountEl.innerText = `PKR 0`;
+            if (sidebarTotalEl) sidebarTotalEl.innerText = `PKR 0`;
 
             const submitBtn = document.getElementById('submit-order-btn');
             if (submitBtn) submitBtn.innerText = "Send to Kitchen";
+            if (sidebarSubmitBtn) sidebarSubmitBtn.innerText = "Send to Kitchen";
             return;
         }
 
-        cartDiv.innerHTML = this.cart.map((item, idx) => {
+        const html = this.cart.map((item, idx) => {
             let configurationsHtml = '';
             if ((item.addons && item.addons.length > 0) || item.instructions) {
                 configurationsHtml += `<div class="mt-1.5 pl-2 border-l-2 border-slate-200 dark:border-slate-700 text-[10px]">`;
@@ -1575,14 +1603,22 @@ const App = {
             `;
         }).join('');
 
+        cartDiv.innerHTML = html;
+        if (sidebarCartDiv) sidebarCartDiv.innerHTML = html;
+
         const total = this.cart.reduce((sum, item) => sum + (item.price || 0), 0);
         const totalAmountEl = document.getElementById('total-amount');
         if (totalAmountEl) totalAmountEl.innerText = `PKR ${total.toLocaleString()}`;
+        if (sidebarTotalEl) sidebarTotalEl.innerText = `PKR ${total.toLocaleString()}`;
 
         const submitBtn = document.getElementById('submit-order-btn');
         if (submitBtn) {
             submitBtn.innerText = "Send to Kitchen";
             submitBtn.setAttribute("onclick", "App.placeOrder()");
+        }
+        if (sidebarSubmitBtn) {
+            sidebarSubmitBtn.innerText = "Send to Kitchen";
+            sidebarSubmitBtn.setAttribute("onclick", "App.placeOrder()");
         }
     },
 
