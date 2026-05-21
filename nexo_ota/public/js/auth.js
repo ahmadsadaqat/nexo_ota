@@ -91,7 +91,11 @@ const Auth = {
             }
 
             const data = await response.json();
-            return data && data.guest !== true && data.error !== true;
+            // Return the full context object when valid so callers can recover session data
+            if (data && data.guest !== true && data.error !== true) {
+                return data;
+            }
+            return false;
         } catch (error) {
             console.error('Session validation failed:', error);
             return false;
@@ -100,13 +104,9 @@ const Auth = {
 
     async checkSession() {
         const sessionData = localStorage.getItem('ota_session');
-        const isValid = await this.validateSession();
 
-        if (!sessionData && !isValid) {
-            this.forceLoginView();
-            return;
-        }
-
+        // If a local session exists, restore the UI immediately to avoid
+        // forcing the user back to login on hard refresh. Validate in background.
         if (sessionData) {
             const session = JSON.parse(sessionData);
             const loginScreen = document.getElementById('login-screen');
@@ -125,7 +125,43 @@ const Auth = {
             } else {
                 if (tableScreen) tableScreen.classList.remove('hidden');
             }
+
+            if (typeof App !== 'undefined') {
+                App.init();
+            }
+
+            // Validate in background: if invalid, show a non-blocking notice.
+            this.validateSession().then(isValid => {
+                if (!isValid) {
+                    console.warn('Background session validation failed. User may need to re-login for some actions.');
+                    if (typeof App !== 'undefined' && App.showToast) {
+                        App.showToast('Session may have expired. Some actions may require re-login.', 'error');
+                    }
+                }
+            }).catch(() => {});
+
+            return;
         }
+
+        // No local session: try recovering from server context.
+        const serverContext = await this.validateSession();
+        if (!serverContext) {
+            this.forceLoginView();
+            return;
+        }
+
+        // Recreate a lightweight local session so the UI can persist across refreshes
+        try {
+            const userEmail = (serverContext.user && serverContext.user.email) || serverContext.user_id || '';
+            localStorage.setItem('ota_session', JSON.stringify({ user: userEmail }));
+        } catch (e) {}
+
+        const loginScreen = document.getElementById('login-screen');
+        const tableScreen = document.getElementById('table-screen');
+        const appScreen = document.getElementById('app-screen');
+        if (loginScreen) loginScreen.classList.add('hidden');
+        if (tableScreen) tableScreen.classList.remove('hidden');
+        if (appScreen) appScreen.classList.add('hidden');
 
         if (typeof App !== 'undefined') {
             App.init();

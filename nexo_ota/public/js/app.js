@@ -534,14 +534,17 @@ const App = {
         }
 
         if (avatarEl) {
+            const placeholderEl = document.getElementById('profile-avatar-placeholder');
             if (this.employeeData.image) {
                 avatarEl.src = this.employeeData.image;
                 avatarEl.alt = `${this.employeeData.employee_name || 'Employee'} avatar`;
+                avatarEl.classList.remove('hidden');
+                if (placeholderEl) placeholderEl.classList.add('hidden');
             } else {
-                avatarEl.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
-                avatarEl.alt = 'Avatar placeholder';
+                // No remote image: hide the img element and show the SVG placeholder
+                avatarEl.classList.add('hidden');
+                if (placeholderEl) placeholderEl.classList.remove('hidden');
             }
-            avatarEl.classList.remove('hidden');
         }
 
         if (this.employeeData.image) {
