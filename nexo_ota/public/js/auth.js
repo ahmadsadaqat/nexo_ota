@@ -130,6 +130,10 @@ const Auth = {
                 App.init();
             }
 
+            if (window.location.hash === '#login') {
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+
             // Validate in background: if invalid, show a non-blocking notice.
             this.validateSession().then(isValid => {
                 if (!isValid) {
@@ -163,6 +167,10 @@ const Auth = {
         if (tableScreen) tableScreen.classList.remove('hidden');
         if (appScreen) appScreen.classList.add('hidden');
 
+        if (window.location.hash === '#login') {
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+
         if (typeof App !== 'undefined') {
             App.init();
         }
@@ -177,6 +185,8 @@ const Auth = {
         if (appScreen) appScreen.classList.add('hidden');
         if (tableScreen) tableScreen.classList.add('hidden');
         if (loginScreen) loginScreen.classList.remove('hidden');
+
+        history.replaceState(null, '', window.location.pathname + window.location.search + '#login');
     },
 
     logout() {
