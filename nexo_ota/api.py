@@ -674,3 +674,38 @@ def finalize_and_pay_invoice(
             "error": True,
             "message": str(e)
         }
+
+
+# =========================================================
+# GET ITEM ADDONS
+# =========================================================
+
+@frappe.whitelist()
+def get_item_addons(item_code, price_list=None):
+    try:
+        # Check if the item has addons enabled
+        has_addons = frappe.db.get_value("Item", item_code, "custom_has_addons")
+        if not (has_addons == 1 or has_addons is True or has_addons == "1"):
+            return []
+
+        addons = frappe.get_all(
+            "Add-Ons",
+            filters={"parent": item_code, "parenttype": "Item"},
+            fields=["item_code", "item_name", "price"]
+        )
+
+        # If price_list is provided, fetch actual price list rate
+        for addon in addons:
+            if price_list:
+                price_list_rate = frappe.db.get_value(
+                    "Item Price",
+                    {"item_code": addon.item_code, "price_list": price_list},
+                    "price_list_rate"
+                )
+                if price_list_rate is not None:
+                    addon["price"] = price_list_rate
+
+        return addons
+    except Exception as e:
+        frappe.log_error(title="get_item_addons_error", message=frappe.get_traceback())
+        return []
